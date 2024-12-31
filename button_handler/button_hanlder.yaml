@@ -4,6 +4,7 @@ blueprint:
   author: Duckle
   name: Button handler
   description: Control anything with a button. Defaults fit IKEA RODRET
+  source_url: https://github.com/Duckle29/homeassistant_blueprints/blob/main/button_handler/button_hanlder.yaml
 
   domain: automation
   input:

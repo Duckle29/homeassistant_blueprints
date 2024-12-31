@@ -1,0 +1,179 @@
+blueprint:
+  homeassistant:
+    min_version: 2024.10.0
+  author: Duckle
+  name: Button handler
+  description: Control anything with a button. Defaults fit IKEA RODRET
+
+  domain: automation
+  input:
+    user_button:
+      name: Button
+      description: Select a button
+      selector:
+        entity:
+          multiple: true
+          domain: sensor
+
+    device_states:
+      name: Device states
+      collapsed: true
+      input:
+        idle_state:
+          name: Idle state
+          description: The default state when the button is idle
+          default: ""
+        on_state:
+          name: Button on state
+          description: The state of the button when the on button is pushed
+          default: "on"
+        off_state:
+          name: Button off state
+          description: The state of the button when the off button is pushed
+          default: "off"
+        hold_on_state:
+          name: Button hold on state
+          description: The state of the button when the on button is held
+          default: "brightness_move_up"
+        hold_off_state:
+          name: Button hold on state
+          description: The state of the button when the off button is held
+          default: "brightness_move_down"
+        hold_release_state:
+          name: Button hold release state
+          description: The state when the button is released after being held
+          default: "brightness_stop"
+
+    timings:
+      name: Timings
+      collapsed: true
+      input:
+        double_click_timeout:
+          name: Double click timeout [ms]
+          description: Time to wait for a double click. The longer this is, the easier it is to hit, but the slower it responds.
+          selector:
+            duration:
+              enable_millisecond: true
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+            milliseconds: 300
+
+    action_section:
+      name: Actions
+      collapsed: true
+      input:
+        button_up_short:
+          name: Single click up
+          description: "Choose action(s) when short pressed:"
+          default: []
+          selector:
+            action: {}
+        button_up_double:
+          name: Double click up
+          description: "Choose action(s) when double pressed:"
+          default: []
+          selector:
+            action: {}
+        button_up_hold:
+          name: Hold up
+          description: "Choose action(s) when holding:"
+          default: []
+          selector:
+            action: {}
+        button_down_short:
+          name: Single click down
+          description: "Choose action(s) when short pressed:"
+          default: []
+          selector:
+            action: {}
+        button_down_double:
+          name: Double click down
+          description: "Choose action(s) when double pressed:"
+          default: []
+          selector:
+            action: {}
+        button_down_hold:
+          name: Hold down
+          description: "Choose action(s) when holding:"
+          default: []
+          selector:
+            action: {}
+        button_hold_release:
+          name: Hold release
+          description: "Choose action(s) when releasing a held button:"
+          default: []
+          selector:
+            action: {}
+
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input user_button
+    from: !input idle_state
+
+variables:
+  var_user_button: !input "user_button"
+  var_on_state: !input "on_state"
+  var_off_state: !input "off_state"
+  var_hold_on_state: !input "hold_on_state"
+  var_hold_off_state: !input "hold_off_state"
+  var_hold_release_state: !input "hold_release_state"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == var_on_state }}"
+
+        sequence:
+          - wait_for_trigger:
+              - platform: state
+                entity_id: !input user_button
+                from: !input idle_state
+                to: !input on_state
+            timeout: !input double_click_timeout
+            continue_on_timeout: true
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ not wait.trigger }}"
+                sequence: !input button_up_short
+            default: !input button_up_double
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == var_off_state }}"
+
+        sequence:
+          - wait_for_trigger:
+              - platform: state
+                entity_id: !input user_button
+                from: !input idle_state
+                to: !input off_state
+            timeout: !input double_click_timeout
+            continue_on_timeout: true
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ not wait.trigger }}"
+                sequence: !input button_down_short
+            default: !input button_down_double
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == var_hold_on_state}}"
+        sequence: !input button_up_hold
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == var_hold_off_state}}"
+        sequence: !input button_down_hold
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == var_hold_release_state}}"
+        sequence: !input button_hold_release
